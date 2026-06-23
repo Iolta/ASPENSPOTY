@@ -123,7 +123,8 @@ async function procesarSpotify(titulo, artista) {
     if (agregarRes.status === 201 || agregarRes.status === 200) {
       console.log(`¡¡Agregado con éxito a tu playlist de Spotify!! 🎵`);
     } else {
-      console.error(`Error al añadir track. Status: ${agregarRes.status}`);
+      const errorDetalle = await agregarRes.text();
+      console.error(`Error al añadir track. Status: ${agregarRes.status}. Detalle: ${errorDetalle}`);
     }
 
   } catch (err) {
