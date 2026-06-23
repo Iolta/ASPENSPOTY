@@ -1,7 +1,7 @@
 const fs = require('fs');
 
-// Nueva API oficial blindada y directa
-const API_URL = 'https://nowplaying.misionesonline.net/aspen.json';
+// La URL exacta que descubriste en la pestaña de red
+const API_URL = 'https://np.tritondigital.com/public/nowplaying?mountName=ASPEN&numberToFetch=1';
 const MEMORIA_FILE = 'ultimo_tema.txt';
 
 const SPOTIFY_CLIENT_ID = process.env.SPOTIFY_CLIENT_ID;
@@ -10,29 +10,33 @@ const SPOTIFY_PLAYLIST_ID = process.env.SPOTIFY_PLAYLIST_ID;
 
 async function monitorearAspen() {
   try {
-    // 1. Consultar el tema actual
+    // 1. Consultamos la URL oficial de Triton
     const respuesta = await fetch(API_URL);
-    if (!respuesta.ok) throw new Error(`HTTP error! status: ${respuesta.status}`);
+    if (!respuesta.ok) throw new Error(`HTTP Error: ${respuesta.status}`);
     
-    const datos = await respuesta.json();
+    const textoXML = await respuesta.text();
     
-    // Adaptación a la estructura limpia del JSON oficial
-    const artista = datos.artist ? datos.artist.trim() : "";
-    const titulo = datos.title ? datos.title.trim() : "";
+    // Extraemos artista y título usando expresiones regulares simples sobre el XML
+    const artistaMatch = textoXML.match(/<property name="track_artist_name"><!\[CDATA\[(.*?)]]><\/property>/);
+    const tituloMatch = textoXML.match(/<property name="cue_title"><!\[CDATA\[(.*?)]]><\/property>/);
+    
+    const artista = artistaMatch ? artistaMatch[1].trim() : "";
+    const titulo = tituloMatch ? tituloMatch[1].trim() : "";
     
     if (!artista || !titulo) {
-      console.log("La radio no reporta canción en este momento (puede ser tanda comercial).");
+      console.log("Triton no reporta canción en este momento (puede ser tanda comercial).");
       return;
     }
     
     const cancionCompleta = `${artista} - ${titulo}`;
     
-    if (cancionCompleta.toUpperCase().includes("ASPEN") || cancionCompleta.toUpperCase().includes("VIVI ASPEN")) {
+    // Filtro para ignorar separadores de la radio
+    if (cancionCompleta.toUpperCase().includes("ASPEN")) {
       console.log("Separador institucional o tanda: " + cancionCompleta);
       return;
     }
     
-    // 2. Control de memoria local
+    // 2. Control de memoria local para no duplicar
     let ultimoTema = "";
     if (fs.existsSync(MEMORIA_FILE)) {
       ultimoTema = fs.readFileSync(MEMORIA_FILE, 'utf-8').trim();
@@ -43,19 +47,19 @@ async function monitorearAspen() {
       return;
     }
     
-    // Guardamos en la memoria del repositorio
+    // Guardamos en memoria
     fs.writeFileSync(MEMORIA_FILE, cancionCompleta);
-    console.log(`¡¡NUEVO TEMA DETECTADO EN RADIO!!: ${cancionCompleta}`);
+    console.log(`¡¡NUEVO TEMA DETECTADO EN ASPEN!!: ${cancionCompleta}`);
     
-    // 3. Impactar en Spotify si las credenciales existen
+    // 3. Si están las claves de Spotify cargadas, impactamos la playlist
     if (SPOTIFY_CLIENT_ID && SPOTIFY_CLIENT_SECRET && SPOTIFY_PLAYLIST_ID) {
       await agregarASpotify(titulo, artista);
     } else {
-      console.log("Claves de Spotify no configuradas aún. Motor de radio validado con éxito.");
+      console.log("Motor de radio validado con éxito. Falta cargar las credenciales de Spotify en los Secrets de GitHub.");
     }
     
   } catch (error) {
-    console.error("Error al consultar la radio:", error.message);
+    console.error("Error en el monitoreo:", error.message);
   }
 }
 
@@ -103,13 +107,13 @@ async function agregarASpotify(titulo, artista) {
     });
 
     if (agregarRes.status === 201 || agregarRes.status === 200) {
-      console.log(`¡¡Agregado con éxito a tu playlist!! 🎵`);
+      console.log(`¡¡Agregado con éxito a tu playlist de Spotify!! 🎵`);
     } else {
-      console.error(`Error al añadir track. Status: ${agregarRes.status}`);
+      console.error(`Error al añadir track a Spotify. Código Status: ${agregarRes.status}`);
     }
 
   } catch (err) {
-    console.error("Error en Spotify:", err.message);
+    console.error("Error interactuando con Spotify:", err.message);
   }
 }
 
