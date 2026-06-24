@@ -1,13 +1,16 @@
 name: Monitorear Aspen FM
 
 on:
-  schedule:
-    - cron: '*/5 * * * *'  # Corre solo cada 5 minutos
-  workflow_dispatch:       # Te permite activarlo manualmente con el botón
+  workflow_dispatch:  # Se activa solo cuando Pipedream le da la orden cada 5 minutos fijos
 
 jobs:
   run-script:
     runs-on: ubuntu-latest
+    
+    # 🔑 ESTO ES CLAVE: Le da permiso al bot para modificar y subir archivos de vuelta a tu repo
+    permissions:
+      contents: write
+
     steps:
       - name: Descargar repositorio
         uses: actions/checkout@v4
@@ -31,4 +34,5 @@ jobs:
           touch ultimo_tema.txt
           touch ultima_limpieza.txt
           git add ultimo_tema.txt ultima_limpieza.txt
-          git diff --quiet && git diff --cached --quiet || (git commit -m "Actualizar estados de monitoreo" && git push)
+          # Compara si hubo cambios; si los hay, hace el commit y los sube exitosamente
+          git diff --quiet && git diff --cached --quiet || (git commit -m "🤖 Memoria: Actualizar estados de monitoreo [skip ci]" && git push)
